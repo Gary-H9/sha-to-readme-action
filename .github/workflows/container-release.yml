@@ -42,8 +42,8 @@ jobs:
 
       - name: Update README with release SHA
         run: |
-          # Update the SHA badge in README (expects a placeholder comment)
-          sed -i "s|<!--sha-badge-->.*<!--/sha-badge-->|<!--sha-badge-->![SHA](https://img.shields.io/badge/release%20sha-${GITHUB_SHA}-blue)<!--/sha-badge-->|g" README.md
+          # Update the SHA badge in README (expects placeholder comments with newlines)
+          sed -i '/<!--sha-badge-->/,/<!--\/sha-badge-->/c\<!--sha-badge-->\n![SHA](https://img.shields.io/badge/release%20sha-'"${GITHUB_SHA}"'-blue)\n<!--/sha-badge-->' README.md
           
       - name: Commit updated README
         run: |
