@@ -1,5 +1,5 @@
 # sha-to-readme-action
 
 <!--sha-badge-->
-![SHA](https://img.shields.io/badge/release%20sha-4e4e06e43ad9d35ae22f3e31b150d42712cbf8c7-blue)
+![SHA](https://img.shields.io/badge/image%20sha-sha256:18a02b25a8645a7f6f639d3c57ec99134d026a608bc1639b7e67a006e788d15a-blue)
 <!--/sha-badge-->
