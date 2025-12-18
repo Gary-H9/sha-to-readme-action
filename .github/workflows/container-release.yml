@@ -20,6 +20,10 @@ jobs:
         with:
           ref: ${{ github.event.repository.default_branch }}
 
+      - name: Set image name to lowercase
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -32,7 +36,9 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          tags: ${{ steps.image.outputs.name }}:${{ github.ref_name }}
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: false
 
       - name: Update README with release SHA
         run: |
