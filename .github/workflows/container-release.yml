@@ -43,15 +43,17 @@ jobs:
 
       - name: Update README with image SHA
         run: |
-          # Extract the image digest (sha256:abc123...)
+          # Extract the image digest and URL-encode the colon for shields.io
           IMAGE_SHA="${{ steps.build.outputs.digest }}"
-          # Update the SHA badge in README (expects placeholder comments with newlines)
-          sed -i '/<!--sha-badge-->/,/<!--\/sha-badge-->/c\<!--sha-badge-->\n![SHA](https://img.shields.io/badge/image%20sha-'"${IMAGE_SHA}"'-blue)\n<!--/sha-badge-->' README.md
+          IMAGE_SHA_ENCODED="${IMAGE_SHA//:/%3A}"
+          # Update the SHA badge in README
+          sed -i '/<!--sha-badge-->/,/<!--\/sha-badge-->/c\<!--sha-badge-->\n![SHA](https://img.shields.io/badge/image%20sha-'"${IMAGE_SHA_ENCODED}"'-blue)\n<!--/sha-badge-->' README.md
           
       - name: Commit updated README
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase
           git add README.md
           IMAGE_SHA="${{ steps.build.outputs.digest }}"
           git diff --staged --quiet || git commit -m "chore: update image SHA to ${IMAGE_SHA}"
