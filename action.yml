@@ -41,10 +41,11 @@ inputs:
     default: "300"
   update-readme:
     description: >-
-      Also rewrite the `sha-badge` comment block in README.md with a
-      copy-pasteable `uses:` line. Adds a commit to `readme-branch`.
+      Rewrite the `sha-badge` comment block in README.md with the badge and a
+      copy-pasteable `uses:` line. Adds a commit to `readme-branch`. Skipped
+      with a warning if the file or the markers are missing.
     required: false
-    default: "false"
+    default: "true"
   readme-path:
     description: README to rewrite when `update-readme` is enabled.
     required: false
