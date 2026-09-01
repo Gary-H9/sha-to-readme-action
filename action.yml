@@ -1,0 +1,136 @@
+name: SHA to README
+description: Publish the commit SHA behind a release tag as an always-current README badge.
+author: Gary-H9
+
+branding:
+  icon: hash
+  color: blue
+
+inputs:
+  token:
+    description: "Token used to read the tag and push the badge data. Needs `contents: write`."
+    required: false
+    default: ${{ github.token }}
+  tag:
+    description: Release tag to resolve. Defaults to the tag of the triggering release.
+    required: false
+    default: ${{ github.event.release.tag_name }}
+  branch:
+    description: Branch the badge JSON is stored on. Kept separate from your code branches.
+    required: false
+    default: badges
+  filename:
+    description: Path of the badge JSON file on that branch.
+    required: false
+    default: release-sha.json
+  label:
+    description: Left-hand text of the badge.
+    required: false
+    default: release sha
+  color:
+    description: Badge colour.
+    required: false
+    default: blue
+  short:
+    description: Show the abbreviated 7-character SHA instead of the full 40.
+    required: false
+    default: "false"
+  cache-seconds:
+    description: How long shields.io may cache the badge. Minimum 300.
+    required: false
+    default: "300"
+  update-readme:
+    description: >-
+      Also rewrite the `sha-badge` comment block in README.md with a
+      copy-pasteable `uses:` line. Adds a commit to `readme-branch`.
+    required: false
+    default: "false"
+  readme-path:
+    description: README to rewrite when `update-readme` is enabled.
+    required: false
+    default: README.md
+  readme-branch:
+    description: Branch to commit the README change to when `update-readme` is enabled.
+    required: false
+    default: ${{ github.event.repository.default_branch }}
+
+outputs:
+  sha:
+    description: Full 40-character commit SHA the tag points at.
+    value: ${{ steps.resolve.outputs.sha }}
+  badge-url:
+    description: shields.io endpoint URL to embed in your README.
+    value: ${{ steps.publish.outputs.badge-url }}
+  json-url:
+    description: Raw URL of the published badge JSON.
+    value: ${{ steps.publish.outputs.json-url }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve tag to commit SHA
+      id: resolve
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        TAG: ${{ inputs.tag }}
+      run: |
+        if [[ -z "${TAG}" ]]; then
+          echo "::error::No tag supplied and the triggering event has no release tag. Pass the 'tag' input." >&2
+          exit 1
+        fi
+        sha="$(bash "${{ github.action_path }}/scripts/resolve-sha.sh" "${TAG}")"
+        echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+        echo "Tag ${TAG} -> ${sha}"
+
+    - name: Publish badge JSON
+      id: publish
+      shell: bash
+      env:
+        TOKEN: ${{ inputs.token }}
+        SHA: ${{ steps.resolve.outputs.sha }}
+        TAG: ${{ inputs.tag }}
+        BRANCH: ${{ inputs.branch }}
+        FILENAME: ${{ inputs.filename }}
+        LABEL: ${{ inputs.label }}
+        COLOR: ${{ inputs.color }}
+        SHORT: ${{ inputs.short }}
+        CACHE_SECONDS: ${{ inputs.cache-seconds }}
+      run: bash "${{ github.action_path }}/scripts/publish-badge.sh"
+
+    - name: Update README block
+      if: inputs.update-readme == 'true'
+      shell: bash
+      env:
+        TOKEN: ${{ inputs.token }}
+        SHA: ${{ steps.resolve.outputs.sha }}
+        TAG: ${{ inputs.tag }}
+        BADGE_URL: ${{ steps.publish.outputs.badge-url }}
+        README_PATH: ${{ inputs.readme-path }}
+        README_BRANCH: ${{ inputs.readme-branch }}
+        LABEL: ${{ inputs.label }}
+      run: bash "${{ github.action_path }}/scripts/update-readme.sh"
+
+    - name: Summarise
+      shell: bash
+      env:
+        TAG: ${{ inputs.tag }}
+        SHA: ${{ steps.resolve.outputs.sha }}
+        BADGE_URL: ${{ steps.publish.outputs.badge-url }}
+      run: |
+        {
+          echo "### Release SHA badge"
+          echo
+          echo "| | |"
+          echo "|---|---|"
+          echo "| Tag | \`${TAG}\` |"
+          echo "| Commit | \`${SHA}\` |"
+          echo
+          echo "Pin it with:"
+          echo
+          echo '```yaml'
+          echo "uses: ${GITHUB_REPOSITORY}@${SHA} # ${TAG}"
+          echo '```'
+          echo
+          echo "Badge: ${BADGE_URL}"
+        } >> "$GITHUB_STEP_SUMMARY"

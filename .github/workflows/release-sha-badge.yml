@@ -1,0 +1,44 @@
+name: 🔗 Release SHA badge
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to publish the badge for (defaults to the latest release).
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-sha-badge
+  cancel-in-progress: false
+
+jobs:
+  badge:
+    name: Publish release SHA badge
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          tag="${EVENT_TAG:-$INPUT_TAG}"
+          if [[ -z "$tag" ]]; then
+            tag="$(gh release view --json tagName --jq .tagName)"
+          fi
+          echo "name=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish badge
+        uses: ./
+        with:
+          tag: ${{ steps.tag.outputs.name }}

@@ -7,7 +7,7 @@ on:
       - "*"
 
 permissions:
-  contents: write
+  contents: read
   packages: write
 
 jobs:
@@ -17,8 +17,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.repository.default_branch }}
 
       - name: Set image name to lowercase
         id: image
@@ -41,20 +39,16 @@ jobs:
         env:
           DOCKER_BUILD_RECORD_UPLOAD: false
 
-      - name: Update README with image SHA
+      - name: Report image digest
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}
+          TAG: ${{ github.ref_name }}
+          DIGEST: ${{ steps.build.outputs.digest }}
         run: |
-          # Extract the image digest and URL-encode the colon for shields.io
-          IMAGE_SHA="${{ steps.build.outputs.digest }}"
-          IMAGE_SHA_ENCODED="${IMAGE_SHA//:/%3A}"
-          # Update the SHA badge in README
-          sed -i '/<!--sha-badge-->/,/<!--\/sha-badge-->/c\<!--sha-badge-->\n![SHA](https://img.shields.io/badge/image%20sha-'"${IMAGE_SHA_ENCODED}"'-blue)\n<!--/sha-badge-->' README.md
-          
-      - name: Commit updated README
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add README.md
-          IMAGE_SHA="${{ steps.build.outputs.digest }}"
-          git diff --staged --quiet || git commit -m "chore: update image SHA to ${IMAGE_SHA}"
-          git pull --rebase
-          git push
+          {
+            echo "### Container image"
+            echo
+            echo '```'
+            echo "${IMAGE}@${DIGEST}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
