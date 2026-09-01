@@ -20,7 +20,9 @@ SERVER_URL="${GITHUB_SERVER_URL:-https://github.com}"
 host="${SERVER_URL#https://}"
 remote="https://x-access-token:${TOKEN}@${host}/${REPO}.git"
 
-# Exit codes: 0 = done, 1 = retryable push rejection, 2 = unrecoverable.
+# Exit codes: 0 = done, 1 = retryable push rejection, 3 = nothing to do (the
+# README or its markers are absent, which is a warning rather than a failure —
+# the badge is already published by this point).
 attempt_update() {
   local workdir
   workdir="$(mktemp -d)"
@@ -33,12 +35,12 @@ attempt_update() {
   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
   if [[ ! -f "$README_PATH" ]]; then
-    echo "::error::${README_PATH} not found on branch ${README_BRANCH}" >&2
-    return 2
+    echo "::warning::${README_PATH} not found on branch ${README_BRANCH}; skipping the copy-pasteable snippet. The badge itself is published." >&2
+    return 3
   fi
 
   REPO="$REPO" SHA="$SHA" TAG="$TAG" BADGE_URL="$BADGE_URL" LABEL="$LABEL" \
-  README_PATH="$README_PATH" python3 - <<'PY' || return 2
+  README_PATH="$README_PATH" python3 - <<'PY' || return 3
 import os, re, sys
 
 path = os.environ["README_PATH"]
@@ -59,7 +61,11 @@ with open(path, encoding="utf-8") as fh:
 
 pattern = re.compile(re.escape(start) + r".*?" + re.escape(end), re.DOTALL)
 if not pattern.search(content):
-    print(f"::error::No '{start}' ... '{end}' block found in {path}", file=sys.stderr)
+    print(
+        f"::warning::No '{start}' ... '{end}' block found in {path}; "
+        "add the markers to get a copy-pasteable `uses:` line.",
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 updated = pattern.sub(lambda _: block, content, count=1)
@@ -85,8 +91,7 @@ for attempt in 1 2 3; do
   status=$?
   set -e
   case "$status" in
-    0) exit 0 ;;
-    2) exit 1 ;;
+    0|3) exit 0 ;;
     *) echo "Push rejected (attempt ${attempt}); retrying against the new tip." >&2 ;;
   esac
   sleep $((attempt * 3))
